@@ -1,3 +1,64 @@
+<?php 
+require_once('classes/database.php');
+require_once('classes/functions.php');
+
+$con = new database();
+$data = $con->opencon();
+$sweetAlertConfig = "";
+
+if (isset($_POST['multisave'])) {
+    $email = $_POST['email'];
+    $username = $_POST['username'];
+    $password = password_hash($_POST['password'], PASSWORD_BCRYPT); // Corrected from $Post to $_POST
+    $firstname = $_POST['firstname'];
+    $lastname = $_POST['lastname'];
+    $birthday = $_POST['birthday'];
+    $sex = $_POST['sex'];
+    $phone = $_POST['phone'];
+    $username = $_POST['username']; // Added because it's used later but not set
+
+    $profile_picture_path = handleFileUpload($_FILES["profile_picture"]); // Corrected input name
+    if ($profile_picture_path === false) {
+        $_SESSION['error'] = "Sorry, there was an error uploading your file, or the file is invalid.";
+    } else {
+        $UserID = $con->signUpUser($firstname, $lastname, $email, $birthday, $sex, $phone, $username, $password, $profile_picture_path);
+        
+        if ($UserID) {
+            $street = $_POST['user_street'];
+            $barangay = $_POST['user_barangay'];
+            $city = $_POST['user_city']; // Fixed typo: was 'user _city'
+            $province = $_POST['user_province'];
+
+            if ($con->insertAddress($UserID, $street, $barangay, $city, $province)) {
+                $sweetAlertConfig = "<script>
+                    Swal.fire({
+                        icon: 'success',
+                        title:'Registration Successful', 
+                        text:'Your account has been created successfully!',
+                        confirmButtonText:'OK'
+                    }).then((result) => {
+                        if(result.isConfirmed) {
+                            window.location.href = 'login.php';
+                        }
+                    });
+                </script>";
+            } else {
+                $_SESSION['error'] = "Error occurred while inserting address. Please try again.";
+            }
+        } else {
+            $_SESSION['error'] = "Sorry, there was an error signing up.";
+        }
+    }
+}
+?>
+
+     
+      
+
+
+
+
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -174,11 +235,13 @@ if (!empty($sweetAlertConfig)) {
     </div>
   </form>
 </div>
+
 <script src="./bootstrap-5.3.3-dist/js/bootstrap.js"></script>
+<script src="./package/dist/sweetalert2.js">
 <!-- Script for Address Selector -->
 <script src="ph-address-selector.js"></script>
 <!-- Script for Form Validation -->
-<script>
+
   
     document.addEventListener("DOMContentLoaded", () => {
       const form = document.querySelector("form");
@@ -280,7 +343,6 @@ function validateStep(step) {
         const passwordInput = form.querySelector("input[name='password']");
         const password = passwordInput.value;
         const confirmPassword = confirmPasswordInput.value;
-      
         if (password === confirmPassword && password !== '') {
           confirmPasswordInput.classList.remove("is-invalid");
           confirmPasswordInput.classList.add("is-valid");
@@ -288,13 +350,25 @@ function validateStep(step) {
         } else {
           confirmPasswordInput.classList.remove("is-valid");
           confirmPasswordInput.classList.add("is-invalid");
+      
           return false;
         }
       }
       
     });
   </script>
-  
+    <?php if(isset($_SESSION['error'])): ?>
+  <script>
+    Swal.fire({
+      icon: 'error',
+      title: 'Oops....',
+      text: '<?php echo addslashes($_SESSION['error']);?>',
+      confirmButtonText: 'OK'
+    })
+  </script>
+
+<?php unset($_SESSION['error']); ?>
+<?php endif; ?>
+<?php echo $sweetAlertConfig; ?>
   </body>
   </html>
-  
